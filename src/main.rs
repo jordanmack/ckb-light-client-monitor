@@ -271,17 +271,19 @@ async fn main() -> Result<(), Box<dyn Error>>
 		}
 
 		// Count offline clients from a collection and print a warning if any are found.
+		let mut offline_clients = Vec::new();
 		let mut offline_count = 0;
 		for client in clients.iter()
 		{
 			if !client.is_online
 			{
 				offline_count += 1;
+				offline_clients.push(client.number.to_string());
 			}
 		}
 		if offline_count > 0
 		{
-			log::warn!("There are {} offline clients.", offline_count);
+			log::warn!("There are {} offline clients: {}", offline_count, offline_clients.join(", "));
 		}
 
 		thread::sleep(time::Duration::from_secs(CHECK_INTERVAL));
