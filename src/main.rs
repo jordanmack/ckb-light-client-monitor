@@ -1,3 +1,4 @@
+use chrono::{Local, DateTime};
 use env_logger::{Builder, Env};
 use num_format::{ToFormattedString};
 use reqwest;
@@ -18,6 +19,7 @@ struct Client
 	port: u16,
 	is_online: bool,
 	block_number: u64,
+	time_offline: Option<DateTime<Local>>,
 }
 
 impl Client 
@@ -31,6 +33,7 @@ impl Client
 			port: STARTING_PORT + number as u16,
 			is_online: true,
 			block_number: 0,
+			time_offline: None,
 		}
 	}
 
@@ -58,24 +61,32 @@ impl Client
 				{
 					if !self.is_online
 					{
-						log::info!("Client {} is now online.", self.number);
+						let duration_offline = Local::now().signed_duration_since(self.time_offline.unwrap()).num_seconds();
+						log::info!("Client {} is now online. (Offline {} seconds.)", self.number, duration_offline.to_formatted_string(&num_format::Locale::en));
+
+						self.is_online = true;
+						self.time_offline = None;
 					}
-					self.is_online = true;
 				}
 				else
 				{
 					if self.is_online
 					{
 						log::error!("Client {} gave an error response.", self.number);
+						self.is_online = false;
+						self.time_offline = Some(Local::now());
 					}
-					self.is_online = false;
 				}
 			}
 			Err(e) =>
 			{
-				// Handle the specific case where the client does not respond
-				log::error!("Client {} did not respond: {}", self.number, e);
-				self.is_online = false;
+				if self.is_online
+				{
+					// Handle the specific case where the client does not respond.
+					log::error!("Client {} did not respond: {}", self.number, e);
+					self.is_online = false;
+					self.time_offline = Some(Local::now());
+				}
 			}
 		}
 
@@ -222,7 +233,7 @@ async fn main() -> Result<(), Box<dyn Error>>
 	let is_verbose = env::args().any(|arg| arg == "-v");
 	let logger_level = if is_verbose { "debug" } else { "info" };
 	Builder::from_env(Env::default().default_filter_or(logger_level))
-		.format(|buf, rec| writeln!(buf, "{} [{}] {}", chrono::Local::now().format("%Y%m%d %H:%M:%S"), rec.level(), rec.args()))
+		.format(|buf, rec| writeln!(buf, "{} [{}] {}", Local::now().format("%Y%m%d %H:%M:%S"), rec.level(), rec.args()))
 		.init();
 
 	let mut clients = (0..TOTAL_CLIENTS).map(Client::new).collect::<Vec<_>>();
