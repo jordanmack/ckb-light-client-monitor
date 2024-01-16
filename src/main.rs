@@ -19,6 +19,7 @@ struct Client
 	port: u16,
 	is_online: bool,
 	block_number: u64,
+	peers: u16,
 	time_offline: Option<DateTime<Local>>,
 }
 
@@ -33,6 +34,7 @@ impl Client
 			port: STARTING_PORT + number as u16,
 			is_online: true,
 			block_number: 0,
+			peers: 0,
 			time_offline: None,
 		}
 	}
@@ -75,6 +77,8 @@ impl Client
 						log::error!("Client {} gave an error response.", self.number);
 						self.is_online = false;
 						self.time_offline = Some(Local::now());
+						self.peers = 0;
+						self.block_number = 0;
 					}
 				}
 			}
@@ -86,6 +90,8 @@ impl Client
 					log::error!("Client {} did not respond: {}", self.number, e);
 					self.is_online = false;
 					self.time_offline = Some(Local::now());
+					self.peers = 0;
+					self.block_number = 0;
 				}
 			}
 		}
@@ -94,7 +100,7 @@ impl Client
 	}
 
 	/// Checks the number of peers the client is connected to using the `get_peers` RPC call.
-	async fn check_peers(&self) -> Result<(), Box<dyn Error>>
+	async fn check_peers(&mut self) -> Result<(), Box<dyn Error>>
 	{
 		if !self.is_online
 		{
@@ -129,12 +135,15 @@ impl Client
 						{
 							Some(peers) =>
 							{
-								match peers.len()
+								let peers_count = peers.len();
+
+								// Print a warning if the client peer cound has changed and has 0 or 1 peers.
+								if self.peers != peers_count as u16 && (peers_count == 0 || peers_count == 1)
 								{
-									0 => log::warn!("Client {} has 0 peers.", self.number),
-									1 => log::warn!("Client {} has 1 peer.", self.number),
-									_ => (), // No message for 2 or more peers.
+									let plural = if peers_count == 1 { "" } else { "s" };
+									log::warn!("Client {} has {} peer{}.", self.number, peers_count, plural);
 								}
+								self.peers = peers_count as u16;
 							},
 							None =>
 							{
@@ -271,19 +280,44 @@ async fn main() -> Result<(), Box<dyn Error>>
 		}
 
 		// Count offline clients from a collection and print a warning if any are found.
+		let mut peer_0_clients = Vec::new();
+		let mut peer_1_clients = Vec::new();
 		let mut offline_clients = Vec::new();
-		let mut offline_count = 0;
 		for client in clients.iter()
 		{
-			if !client.is_online
+			if client.is_online
 			{
-				offline_count += 1;
-				offline_clients.push(client.number.to_string());
+				if client.peers == 0
+				{
+					peer_0_clients.push(client.number);
+				}
+				else if client.peers == 1
+				{
+					peer_1_clients.push(client.number);
+				}
+			}
+			else
+			{
+				offline_clients.push(client.number);
 			}
 		}
-		if offline_count > 0
+		if !peer_0_clients.is_empty()
 		{
-			log::warn!("There are {} offline clients: {}", offline_count, offline_clients.join(", "));
+			let peer_0_client_count = peer_0_clients.len();
+			let peer_0_client_string: String = peer_0_clients.iter().map(|x|x.to_string()).collect::<Vec<String>>().join(", ");
+			log::warn!("There are {} clients with 0 peers: {}", peer_0_client_count, peer_0_client_string);
+		}
+		if !peer_1_clients.is_empty()
+		{
+			let peer_1_client_count = peer_1_clients.len();
+			let peer_1_client_string = peer_1_clients.iter().map(|x|x.to_string()).collect::<Vec<String>>().join(", ");
+			log::warn!("There are {} clients with 1 peer: {}", peer_1_client_count, peer_1_client_string);
+		}
+		if !offline_clients.is_empty()
+		{
+			let offline_client_count = offline_clients.len();
+			let offline_client_string = offline_clients.iter().map(|x|x.to_string()).collect::<Vec<String>>().join(", ");
+			log::warn!("There are {} offline clients: {}", offline_client_count, offline_client_string);
 		}
 
 		thread::sleep(time::Duration::from_secs(CHECK_INTERVAL));
