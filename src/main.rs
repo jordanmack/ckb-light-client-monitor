@@ -305,19 +305,19 @@ async fn main() -> Result<(), Box<dyn Error>>
 		{
 			let peer_0_client_count = peer_0_clients.len();
 			let peer_0_client_string: String = peer_0_clients.iter().map(|x|x.to_string()).collect::<Vec<String>>().join(", ");
-			log::warn!("There are {} clients with 0 peers: {}", peer_0_client_count, peer_0_client_string);
+			log::info!("There are {} clients with 0 peers: {}", peer_0_client_count, peer_0_client_string);
 		}
 		if !peer_1_clients.is_empty()
 		{
 			let peer_1_client_count = peer_1_clients.len();
 			let peer_1_client_string = peer_1_clients.iter().map(|x|x.to_string()).collect::<Vec<String>>().join(", ");
-			log::warn!("There are {} clients with 1 peer: {}", peer_1_client_count, peer_1_client_string);
+			log::info!("There are {} clients with 1 peer: {}", peer_1_client_count, peer_1_client_string);
 		}
 		if !offline_clients.is_empty()
 		{
 			let offline_client_count = offline_clients.len();
 			let offline_client_string = offline_clients.iter().map(|x|x.to_string()).collect::<Vec<String>>().join(", ");
-			log::warn!("There are {} offline clients: {}", offline_client_count, offline_client_string);
+			log::info!("There are {} clients that are offline: {}", offline_client_count, offline_client_string);
 		}
 
 		thread::sleep(time::Duration::from_secs(CHECK_INTERVAL));
