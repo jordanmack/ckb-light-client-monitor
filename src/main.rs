@@ -141,7 +141,7 @@ impl Client
 								if self.peers != peers_count as u16 && (peers_count == 0 || peers_count == 1)
 								{
 									let plural = if peers_count == 1 { "" } else { "s" };
-									log::warn!("Client {} has {} peer{}.", self.number, peers_count, plural);
+									log::debug!("Client {} has {} peer{}.", self.number, peers_count, plural);
 								}
 								self.peers = peers_count as u16;
 							},
